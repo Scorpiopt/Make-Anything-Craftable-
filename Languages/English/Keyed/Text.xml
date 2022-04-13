@@ -9,7 +9,8 @@
 	<MAC.SetSkillRequirements>Set skill requirements (optional)</MAC.SetSkillRequirements>
 	<MAC.SkillLevel>Min skill level: {0}</MAC.SkillLevel>
 	<MAC.SetResearchRequirements>Set research requirements (optional)</MAC.SetResearchRequirements>
-	<MAC.SetIngredientRequirements>Set ingredients</MAC.SetIngredientRequirements>
+	<MAC.SetIngredientRequirements>Set ingredients (optional)</MAC.SetIngredientRequirements>
+	<MAC.DisallowThingDefs>Set disallowed thing defs</MAC.DisallowThingDefs>
 	<MAC.Count>Count: </MAC.Count>
 	<MAC.RecipeLabel>Recipe label: </MAC.RecipeLabel>
 	<MAC.SetWorkEffect>Set work effect (optional)</MAC.SetWorkEffect>
@@ -20,4 +21,11 @@
 	<MAC.SetWorkSkill>Set work skill (optional)</MAC.SetWorkSkill>
 	<MAC.SaveRecipe>Save recipe</MAC.SaveRecipe>
 	<MAC.SetWorkAmount>Set work amount</MAC.SetWorkAmount>
+	<MAC.SelectRecipe>Select recipe</MAC.SelectRecipe>
+	<MAC.AddCategory>Add category</MAC.AddCategory>
+	<MAC.AddThingDef>Add thing def</MAC.AddThingDef>
+	<MAC.RemoveIngredient>Remove ingredient</MAC.RemoveIngredient>
+	<MAC.ThingDefMark>[T] </MAC.ThingDefMark>
+	<MAC.CategoryMark>[C] </MAC.CategoryMark>
+	
 </LanguageData>

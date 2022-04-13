@@ -8,15 +8,17 @@ using System;
 
 namespace MakeAnythingCraftable
 {
-    public class Window_SelectItem : Window
+    public class Window_SelectItem<T> : Window where T : Def
     {
         private Vector2 scrollPosition;
         public override Vector2 InitialSize => new Vector2(620f, 500f);
 
-        public List<ThingDef> allItems;
+        public List<T> allItems;
 
-        public Action<ThingDef> actionOnSelect;
-        public Window_SelectItem(List<ThingDef> items, Action<ThingDef> actionOnSelect)
+        public Action<T> actionOnSelect;
+
+        public Func<T, int> ordering;
+        public Window_SelectItem(List<T> items, Action<T> actionOnSelect, Func<T, int> ordering = null)
         {
             doCloseButton = true;
             doCloseX = true;
@@ -24,6 +26,7 @@ namespace MakeAnythingCraftable
             absorbInputAroundWindow = false;
             this.allItems = items;
             this.actionOnSelect = actionOnSelect;
+            this.ordering = ordering;
         }
 
         string searchKey;
@@ -43,28 +46,35 @@ namespace MakeAnythingCraftable
             outRect.yMax -= 70f;
             outRect.width -= 16f;
 
-            var thingDefs = searchKey.NullOrEmpty() ? allItems : allItems.Where(x => x.label.ToLower().Contains(searchKey.ToLower())).ToList();
+            var defs = searchKey.NullOrEmpty() ? allItems : allItems.Where(x => x.label.ToLower().Contains(searchKey.ToLower())).ToList();
 
-            Rect viewRect = new Rect(0f, 0f, outRect.width - 16f, (float)thingDefs.Count() * 35f);
+            Rect viewRect = new Rect(0f, 0f, outRect.width - 16f, (float)defs.Count() * 35f);
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
             try
             {
                 float num = 0f;
-                foreach (ThingDef thingDef in thingDefs.OrderBy(x => x.FirstThingCategory?.index ?? 0).ThenBy(x => x.label))
+                if (ordering != null)
+                {
+                    defs = defs.OrderBy(x => ordering(x)).ThenBy(x => x.label).ToList();
+                }
+                foreach (T def in defs)
                 {
                     Rect iconRect = new Rect(0f, num, 24, 32);
-                    Widgets.InfoCardButton(iconRect, thingDef);
-                    iconRect.x += 24;
-                    Widgets.ThingIcon(iconRect, thingDef);
+                    Widgets.InfoCardButton(iconRect, def);
+                    if (def is ThingDef thingDef2)
+                    {
+                        iconRect.x += 24;
+                        Widgets.ThingIcon(iconRect, thingDef2);
+                    }
                     Rect rect = new Rect(iconRect.xMax + 5, num, viewRect.width * 0.7f, 32f);
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    Widgets.Label(rect, thingDef.LabelCap);
+                    Widgets.Label(rect, def.LabelCap);
                     Text.Anchor = TextAnchor.UpperLeft;
                     rect.x = rect.xMax + 10;
                     rect.width = 100;
                     if (Widgets.ButtonText(rect, "MAC.Select".Translate()))
                     {
-                        actionOnSelect(thingDef);
+                        actionOnSelect(def);
                         SoundDefOf.Click.PlayOneShotOnCamera();
                         this.Close();
                     }

@@ -2,26 +2,22 @@
 
 namespace MakeAnythingCraftable
 {
-    public sealed class ThingDefCountClassString : IExposable
+    public class DefCount<T> : IExposable where T : Def
     {
         public string defName;
-
         public int count;
-        public ThingDefCountClassString()
+        public DefCount()
         {
         }
-
-        public ThingDefCountClassString(string defName, int count)
+        public DefCount(string defName, int count)
         {
             this.defName = defName;
             this.count = count;
         }
-
-        public ThingDef ThingDef => DefDatabase<ThingDef>.GetNamed(defName);
-
+        public T Def => DefDatabase<T>.GetNamedSilentFail(defName);
         public void ExposeData()
         {
-            Scribe_Values.Look(ref defName, "thingDef");
+            Scribe_Values.Look(ref defName, "defName");
             Scribe_Values.Look(ref count, "count", 1);
         }
     }

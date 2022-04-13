@@ -35,15 +35,8 @@ namespace MakeAnythingCraftable
         {
             base.WriteSettings();
             settings.ResetRecipe();
-            settings.ApplySettings();
         }
     }
-
-    public enum Tab
-    {
-        CreateNewRecipe,
-        ExistingRecipes
-    };
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public class HotSwappableAttribute : Attribute
@@ -54,8 +47,6 @@ namespace MakeAnythingCraftable
     public class MakeAnythingCraftableSettings : ModSettings
     {
         public List<RecipeDefExposable> newRecipeDefs = new List<RecipeDefExposable>();
-        private List<TabRecord> tabs = new List<TabRecord>();
-		private Tab curTab;
 		public override void ExposeData()
         {
             base.ExposeData();
@@ -76,41 +67,29 @@ namespace MakeAnythingCraftable
         }
         public void DoSettingsWindowContents(Rect inRect)
         {
-            Rect rect = new Rect(inRect.x, inRect.y + 30, inRect.width, inRect.height - 30);
-			tabs.Clear();
-			tabs.Add(new TabRecord("MAC.CreateNewRecipe".Translate().CapitalizeFirst(), delegate
-			{
-				curTab = Tab.CreateNewRecipe;
-			}, curTab == Tab.CreateNewRecipe));
-			tabs.Add(new TabRecord("MAC.ExistingRecipes".Translate().CapitalizeFirst(), delegate
-			{
-				curTab = Tab.ExistingRecipes;
-			}, curTab == Tab.ExistingRecipes));
-			Widgets.DrawMenuSection(rect);
-			TabDrawer.DrawTabs(rect, tabs);
-			rect = rect.ContractedBy(18f);
+            Rect rect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Widgets.BeginGroup(rect);
-            switch (curTab)
-			{
-				case Tab.CreateNewRecipe:
-                    DrawCreateNewRecipe(rect);
-
-                    break;
-				case Tab.ExistingRecipes:
-					break;
-			}
+            DrawPage(rect);
             Widgets.EndGroup();
         }
 
         public RecipeDefExposable curRecipe;
-
         private int scrollHeightCount = 0;
         private Vector2 firstColumnPos;
         private Vector2 secondColumnPos;
         private Vector2 scrollPosition;
         private string recipeLabel;
-        string buf1, buf2, buf3;
+        string buf1, buf2, buf3, buf4;
         public string GetRecipeLabel()
+        {
+            if (!recipeLabel.NullOrEmpty())
+            {
+                return recipeLabel;
+            }
+            return GetRecipeLabelBase();
+        }
+
+        private string GetRecipeLabelBase()
         {
             if (curRecipe.label != null)
             {
@@ -118,7 +97,7 @@ namespace MakeAnythingCraftable
             }
             if (curRecipe.productString != null)
             {
-                var def = curRecipe.productString.ThingDef;
+                var def = curRecipe.productString.Def;
                 string text = def.label;
                 if (curRecipe.productString.count != 1)
                 {
@@ -128,7 +107,8 @@ namespace MakeAnythingCraftable
             }
             return "";
         }
-        public void DrawCreateNewRecipe(Rect rect)
+
+        public void DrawPage(Rect rect)
         {
             if (curRecipe is null)
             {
@@ -141,24 +121,27 @@ namespace MakeAnythingCraftable
             scrollHeightCount = 0;
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
 
+            DoButton(ref firstColumnPos, "MAC.SelectRecipe".Translate(), delegate
+            {
+                Find.WindowStack.Add(new Window_SelectItem<RecipeDef>(Utils.craftingRecipes, delegate (RecipeDef selected)
+                {
+                    curRecipe = new RecipeDefExposable(selected);
+                }));
+            });
+
+            firstColumnPos.y += 12;
+
             if (curRecipe.productString != null && curRecipe.recipeUsersString.Any() && curRecipe.workAmount > 0)
             {
                 if (Widgets.ButtonText(new Rect(firstColumnPos.x, firstColumnPos.y, 250, 32), "MAC.SaveRecipe".Translate()))
                 {
-                    curRecipe.defName = "MAC_Custom_Make_" + curRecipe.productString.ThingDef.defName;
+                    curRecipe.defName = "MAC_Custom_Make_" + curRecipe.productString.Def.defName;
                     if (curRecipe.label.NullOrEmpty())
                     {
-                        if (!recipeLabel.NullOrEmpty())
-                        {
-                            curRecipe.label = recipeLabel;
-                        }
-                        else
-                        {
-                            curRecipe.label = GetRecipeLabel();
-                        }
+                        curRecipe.label = GetRecipeLabel();
                     }
                     curRecipe.description = curRecipe.label;
-                    string text = curRecipe.productString.ThingDef.label;
+                    string text = curRecipe.productString.Def.label;
                     if (curRecipe.productString.count != 1)
                     {
                         text = text + " x" + curRecipe.productString.count;
@@ -168,6 +151,7 @@ namespace MakeAnythingCraftable
                     newRecipeDefs.Add(curRecipe);
                     ResetPositions();
                     ResetRecipe();
+                    ApplySettings();
                     Widgets.EndScrollView();
                     return;
                 }
@@ -177,8 +161,9 @@ namespace MakeAnythingCraftable
             var labelRect = new Rect(firstColumnPos.x, firstColumnPos.y, 100, 24);
             Widgets.Label(labelRect, "MAC.RecipeLabel".Translate());
             var inputRect = new Rect(labelRect.xMax, firstColumnPos.y, 250, 24);
+            Rect removeRect;
             recipeLabel = Widgets.TextField(inputRect, GetRecipeLabel());
-            if (recipeLabel == GetRecipeLabel())
+            if (recipeLabel == GetRecipeLabelBase())
             {
                 recipeLabel = "";
             }
@@ -186,16 +171,16 @@ namespace MakeAnythingCraftable
             firstColumnPos.y += 12;
 
             labelRect = DoLabel(ref firstColumnPos, "MAC.SelectProduct".Translate());
-            Rect buttonRect = DoButton(ref firstColumnPos, curRecipe.productString != null ? curRecipe.productString.ThingDef.LabelCap.ToString() : "-", delegate
+            Rect buttonRect = DoButton(ref firstColumnPos, curRecipe.productString != null ? curRecipe.productString.Def.LabelCap.ToString() : "-", delegate
             {
-                Find.WindowStack.Add(new Window_SelectItem(Utils.craftableItems, delegate (ThingDef selected)
+                Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.craftableItems, delegate (ThingDef selected)
                 {
-                    curRecipe.productString = new ThingDefCountClassString
+                    curRecipe.productString = new DefCount<ThingDef>
                     {
                         defName = selected.defName,
                         count = 1
                     };
-                }));
+                }, x => x.FirstThingCategory?.index ?? 0));
             });
 
             if (curRecipe.productString != null)
@@ -225,17 +210,23 @@ namespace MakeAnythingCraftable
 
             labelRect = DoLabel(ref firstColumnPos, "MAC.SelectWorkbenches".Translate());
             string toRemove = null;
-            for (var i = 0; i < curRecipe.recipeUsersString.Count; i++)
+            for (var i = 0; i < curRecipe.recipeUsersString.ListFullCopy().Count; i++)
             {
                 var recipeUser = curRecipe.recipeUsersString[i];
                 Rect recipeUserRect = new Rect(firstColumnPos.x, firstColumnPos.y, buttonRect.width - 30, 24);
                 var def = DefDatabase<ThingDef>.GetNamed(recipeUser);
                 if (Widgets.ButtonText(recipeUserRect, def.LabelCap))
                 {
-                    AddRecipeUserOptions();
+                    Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.workbenches.Where(x => !curRecipe.recipeUsersString.Contains(x.defName)).ToList(),
+                    delegate (ThingDef selected)
+                    {
+                        var index = curRecipe.recipeUsersString.IndexOf(recipeUser);
+                        curRecipe.recipeUsersString.RemoveAt(index);
+                        curRecipe.recipeUsersString.Insert(index, selected.defName);
+                    }, x => x.FirstThingCategory?.index ?? 0));
                 }
 
-                var removeRect = new Rect(recipeUserRect.xMax + 5, firstColumnPos.y, 20, 21f);
+                removeRect = new Rect(recipeUserRect.xMax + 5, firstColumnPos.y, 20, 21f);
                 if (Widgets.ButtonImage(removeRect, TexButton.DeleteX))
                 {
                     toRemove = recipeUser;
@@ -248,7 +239,11 @@ namespace MakeAnythingCraftable
             }
             buttonRect = DoButton(ref firstColumnPos, "Add".Translate().CapitalizeFirst(), delegate
             {
-                AddRecipeUserOptions();
+                Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.workbenches.Where(x => !curRecipe.recipeUsersString.Contains(x.defName)).ToList(),
+                delegate (ThingDef selected)
+                {
+                    curRecipe.recipeUsersString.Add(selected.defName);
+                }, x => x.FirstThingCategory?.index ?? 0));
             });
 
             firstColumnPos.y += 12;
@@ -324,17 +319,31 @@ namespace MakeAnythingCraftable
 
             labelRect = DoLabel(ref secondColumnPos, "MAC.SetSkillRequirements".Translate());
             toRemove = "";
-            for (var i = 0; i < curRecipe.skillRequirementsString.Count; i++)
+            for (var i = 0; i < curRecipe.skillRequirementsString.ListFullCopy().Count; i++)
             {
                 var skillRequirement = curRecipe.skillRequirementsString[i];
                 Rect skillRect = new Rect(secondColumnPos.x, secondColumnPos.y, buttonRect.width - 30, 24);
                 var def = DefDatabase<SkillDef>.GetNamed(skillRequirement.skill);
                 if (Widgets.ButtonText(skillRect, def.LabelCap))
                 {
-                    AddSkillRequirementOptions();
+                    var floatList = new List<FloatMenuOption>();
+                    foreach (var skill in DefDatabase<SkillDef>.AllDefs.Where(x => !curRecipe.skillRequirementsString.Any(y => x.defName == y.skill)))
+                    {
+                        floatList.Add(new FloatMenuOption(skill.skillLabel.CapitalizeFirst(), delegate
+                        {
+                            var index = curRecipe.skillRequirementsString.IndexOf(skillRequirement);
+                            curRecipe.skillRequirementsString.RemoveAt(index);
+                            curRecipe.skillRequirementsString.Insert(index, new SkillRequirementString
+                            {
+                                skill = skill.defName,
+                                minLevel = 1
+                            });
+                        }));
+                    }
+                    Find.WindowStack.Add(new FloatMenu(floatList));
                 }
 
-                var removeRect = new Rect(skillRect.xMax + 5, secondColumnPos.y, 20, 21f);
+                removeRect = new Rect(skillRect.xMax + 5, secondColumnPos.y, 20, 21f);
                 if (Widgets.ButtonImage(removeRect, TexButton.DeleteX))
                 {
                     toRemove = skillRequirement.skill;
@@ -352,7 +361,19 @@ namespace MakeAnythingCraftable
 
             buttonRect = DoButton(ref secondColumnPos, "Add".Translate().CapitalizeFirst(), delegate
             {
-                AddSkillRequirementOptions();
+                var floatList = new List<FloatMenuOption>();
+                foreach (var skill in DefDatabase<SkillDef>.AllDefs.Where(x => !curRecipe.skillRequirementsString.Any(y => x.defName == y.skill)))
+                {
+                    floatList.Add(new FloatMenuOption(skill.skillLabel.CapitalizeFirst(), delegate
+                    {
+                        curRecipe.skillRequirementsString.Add(new SkillRequirementString
+                        {
+                            skill = skill.defName,
+                            minLevel = 1
+                        });
+                    }));
+                }
+                Find.WindowStack.Add(new FloatMenu(floatList));
             });
             secondColumnPos.y += 12;
 
@@ -375,20 +396,30 @@ namespace MakeAnythingCraftable
 
             labelRect = DoLabel(ref secondColumnPos, "MAC.SetResearchRequirements".Translate());
             toRemove = "";
-            for (var i = 0; i < curRecipe.researchPrerequisitesString.Count; i++)
+            for (var i = 0; i < curRecipe.researchPrerequisitesString.ListFullCopy().Count; i++)
             {
-                var skillRequirement = curRecipe.researchPrerequisitesString[i];
+                var researchRequirement = curRecipe.researchPrerequisitesString[i];
                 Rect skillRect = new Rect(secondColumnPos.x, secondColumnPos.y, buttonRect.width - 30, 24);
-                var def = DefDatabase<ResearchProjectDef>.GetNamed(skillRequirement);
+                var def = DefDatabase<ResearchProjectDef>.GetNamed(researchRequirement);
                 if (Widgets.ButtonText(skillRect, def.LabelCap))
                 {
-                    AddResearchRequirementOptions();
+                    var floatList = new List<FloatMenuOption>();
+                    foreach (var researchProject in DefDatabase<ResearchProjectDef>.AllDefs.Where(x => !curRecipe.researchPrerequisitesString.Any(y => x.defName == y)))
+                    {
+                        floatList.Add(new FloatMenuOption(researchProject.LabelCap, delegate
+                        {
+                            var index = curRecipe.researchPrerequisitesString.IndexOf(researchRequirement);
+                            curRecipe.researchPrerequisitesString.RemoveAt(index);
+                            curRecipe.researchPrerequisitesString.Insert(index, researchProject.defName);
+                        }));
+                    }
+                    Find.WindowStack.Add(new FloatMenu(floatList));
                 }
 
-                var removeRect = new Rect(skillRect.xMax + 5, secondColumnPos.y, 20, 21f);
+                removeRect = new Rect(skillRect.xMax + 5, secondColumnPos.y, 20, 21f);
                 if (Widgets.ButtonImage(removeRect, TexButton.DeleteX))
                 {
-                    toRemove = skillRequirement;
+                    toRemove = researchRequirement;
                 }
                 secondColumnPos.y += 24;
             }
@@ -400,38 +431,169 @@ namespace MakeAnythingCraftable
 
             buttonRect = DoButton(ref secondColumnPos, "Add".Translate().CapitalizeFirst(), delegate
             {
-                AddResearchRequirementOptions();
+                var floatList = new List<FloatMenuOption>();
+                foreach (var researchProject in DefDatabase<ResearchProjectDef>.AllDefs.Where(x => !curRecipe.researchPrerequisitesString.Any(y => x.defName == y)))
+                {
+                    floatList.Add(new FloatMenuOption(researchProject.LabelCap, delegate
+                    {
+                        curRecipe.researchPrerequisitesString.Add(researchProject.defName);
+                    }));
+                }
+                Find.WindowStack.Add(new FloatMenu(floatList));
             });
             secondColumnPos.y += 12;
 
             labelRect = DoLabel(ref secondColumnPos, "MAC.SetIngredientRequirements".Translate());
-            toRemove = "";
-            for (var i = 0; i < curRecipe.ingredientsString.Count; i++)
+            int removeID = -1;
+
+            for (var i = 0; i < curRecipe.ingredientsCount.Count; i++)
             {
-                var ingredientRequirement = curRecipe.ingredientsString[i];
-                Rect ingredientRect = new Rect(secondColumnPos.x, secondColumnPos.y, buttonRect.width - 30, 24);
-                var def = DefDatabase<ThingDef>.GetNamed(ingredientRequirement.defName);
-                if (Widgets.ButtonText(ingredientRect, def.LabelCap))
+                var thingCategoryIngredient = curRecipe.ingredientsCount[i];
+                bool countDone = false;
+                toRemove = "";
+                for (var j = 0; j < thingCategoryIngredient.categories.ListFullCopy().Count; j++)
                 {
-                    AddIngredientRequirementOptions();
+                    var ingredientRequirement = curRecipe.ingredientsCount[i].categories[j];
+                    Rect ingredientRect = new Rect(secondColumnPos.x, secondColumnPos.y, buttonRect.width - 30, 24);
+                    var def = DefDatabase<ThingCategoryDef>.GetNamed(ingredientRequirement);
+                    if (Widgets.ButtonText(ingredientRect, "MAC.CategoryMark".Translate() + def.LabelCap))
+                    {
+                        Find.WindowStack.Add(new Window_SelectItem<ThingCategoryDef>(DefDatabase<ThingCategoryDef>.AllDefsListForReading,
+                            delegate (ThingCategoryDef selected)
+                            {
+                                var index = thingCategoryIngredient.categories.IndexOf(ingredientRequirement);
+                                thingCategoryIngredient.categories.RemoveAt(index);
+                                thingCategoryIngredient.categories.Insert(index, selected.defName);
+                            }, x => x.index));
+                    }
+
+                    removeRect = new Rect(ingredientRect.xMax + 5, secondColumnPos.y, 20, 21f);
+                    if (Widgets.ButtonImage(removeRect, TexButton.DeleteX))
+                    {
+                        toRemove = ingredientRequirement;
+                    }
+                    if (!countDone)
+                    {
+                        DoInput(removeRect.xMax + 15, removeRect.y, "MAC.Count".Translate(), ref thingCategoryIngredient.count, ref buf3);
+                        countDone = true;
+                    }
+                    secondColumnPos.y += 24;
+                }
+                if (!toRemove.NullOrEmpty())
+                {
+                    curRecipe.ingredientsCount[i].categories.RemoveAll(x => x == toRemove);
                 }
 
-                var removeRect = new Rect(ingredientRect.xMax + 5, secondColumnPos.y, 20, 21f);
-                if (Widgets.ButtonImage(removeRect, TexButton.DeleteX))
+                toRemove = "";
+                for (var j = 0; j < thingCategoryIngredient.thingDefs.ListFullCopy().Count; j++)
                 {
-                    toRemove = ingredientRequirement.defName;
+                    var ingredientRequirement = curRecipe.ingredientsCount[i].thingDefs[j];
+                    Rect ingredientRect = new Rect(secondColumnPos.x, secondColumnPos.y, buttonRect.width - 30, 24);
+                    var def = DefDatabase<ThingDef>.GetNamed(ingredientRequirement);
+                    if (Widgets.ButtonText(ingredientRect, "MAC.ThingDefMark".Translate() + def.LabelCap))
+                    {
+                        Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.craftableItems, delegate (ThingDef selected)
+                        {
+                            var index = thingCategoryIngredient.thingDefs.IndexOf(ingredientRequirement);
+                            thingCategoryIngredient.thingDefs.RemoveAt(index);
+                            thingCategoryIngredient.thingDefs.Insert(index, selected.defName);
+                        }, x => x.FirstThingCategory?.index ?? 0));
+                    }
+
+                    removeRect = new Rect(ingredientRect.xMax + 5, secondColumnPos.y, 20, 21f);
+                    if (Widgets.ButtonImage(removeRect, TexButton.DeleteX))
+                    {
+                        toRemove = ingredientRequirement;
+                    }
+                    if (!countDone)
+                    {
+                        DoInput(removeRect.xMax + 15, removeRect.y, "MAC.Count".Translate(), ref thingCategoryIngredient.count, ref buf4);
+                        countDone = true;
+                    }
+                    secondColumnPos.y += 24;
                 }
-                DoInput(removeRect.xMax + 15, removeRect.y, "MAC.Count".Translate(), ref ingredientRequirement.count, ref buf3);
-                secondColumnPos.y += 24;
+                if (!toRemove.NullOrEmpty())
+                {
+                    curRecipe.ingredientsCount[i].thingDefs.RemoveAll(x => x == toRemove);
+                }
+
+                buttonRect = DoButton(ref secondColumnPos, "MAC.AddThingDef".Translate().CapitalizeFirst(), delegate
+                {
+                    Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.craftableItems, delegate (ThingDef selected)
+                    {
+                        thingCategoryIngredient.thingDefs.Add(selected.defName);
+                    }, x => x.FirstThingCategory?.index ?? 0));
+                });
+
+                buttonRect = DoButton(ref secondColumnPos, "MAC.AddCategory".Translate().CapitalizeFirst(), delegate
+                {
+                    Find.WindowStack.Add(new Window_SelectItem<ThingCategoryDef>(DefDatabase<ThingCategoryDef>.AllDefsListForReading,
+                        delegate (ThingCategoryDef selected)
+                        {
+                            thingCategoryIngredient.categories.Add(selected.defName);
+                        }, x => x.index));
+                });
+
+                buttonRect = DoButton(ref secondColumnPos, "MAC.RemoveIngredient".Translate().CapitalizeFirst(), delegate
+                {
+                    removeID = i;
+                });
+
+                secondColumnPos.y += 12;
+                Color color = GUI.color;
+                GUI.color = color * new Color(1f, 1f, 1f, 0.4f);
+                Widgets.DrawLineHorizontal(secondColumnPos.x, secondColumnPos.y, 250);
+                GUI.color = color;
+                secondColumnPos.y += 12;
             }
-            if (!toRemove.NullOrEmpty())
+
+            if (removeID != -1)
             {
-                curRecipe.ingredientsString.RemoveAll(x => x.defName == toRemove);
+                curRecipe.ingredientsCount.RemoveAt(removeID);
             }
 
             buttonRect = DoButton(ref secondColumnPos, "Add".Translate().CapitalizeFirst(), delegate
             {
-                AddIngredientRequirementOptions();
+                curRecipe.ingredientsCount.Add(new IngredientCountExposable { count = 1});
+            });
+            secondColumnPos.y += 12;
+
+            labelRect = DoLabel(ref secondColumnPos, "MAC.DisallowThingDefs".Translate());
+            toRemove = null;
+            for (var i = 0; i < curRecipe.disallowedIngredients.ListFullCopy().Count; i++)
+            {
+                var disallowedThingDef = curRecipe.disallowedIngredients[i];
+                Rect recipeUserRect = new Rect(secondColumnPos.x, secondColumnPos.y, buttonRect.width - 30, 24);
+                var def = DefDatabase<ThingDef>.GetNamed(disallowedThingDef);
+                if (Widgets.ButtonText(recipeUserRect, def.LabelCap))
+                {
+                    Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.craftableItems,
+                    delegate (ThingDef selected)
+                    {
+                        var index = curRecipe.disallowedIngredients.IndexOf(disallowedThingDef);
+                        curRecipe.disallowedIngredients.RemoveAt(index);
+                        curRecipe.disallowedIngredients.Insert(index, selected.defName);
+                    }, x => x.FirstThingCategory?.index ?? 0));
+                }
+
+                removeRect = new Rect(recipeUserRect.xMax + 5, secondColumnPos.y, 20, 21f);
+                if (Widgets.ButtonImage(removeRect, TexButton.DeleteX))
+                {
+                    toRemove = disallowedThingDef;
+                }
+                secondColumnPos.y += 24;
+            }
+            if (!toRemove.NullOrEmpty())
+            {
+                curRecipe.disallowedIngredients.Remove(toRemove);
+            }
+            buttonRect = DoButton(ref secondColumnPos, "Add".Translate().CapitalizeFirst(), delegate
+            {
+                Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.craftableItems,
+                delegate (ThingDef selected)
+                {
+                    curRecipe.disallowedIngredients.Add(selected.defName);
+                }, x => x.FirstThingCategory?.index ?? 0));
             });
 
             Widgets.EndScrollView();
@@ -453,57 +615,6 @@ namespace MakeAnythingCraftable
             firstColumnPos = new Vector2(0, 0);
             secondColumnPos = new Vector2(420, 0);
         }
-        private void AddRecipeUserOptions()
-        {
-            Find.WindowStack.Add(new Window_SelectItem(Utils.workbenches.Where(x => !curRecipe.recipeUsersString.Contains(x.defName)).ToList(),
-            delegate (ThingDef selected)
-            {
-                curRecipe.recipeUsersString.Add(selected.defName);
-            }));
-        }
-
-        private void AddSkillRequirementOptions()
-        {
-            var floatList = new List<FloatMenuOption>();
-            foreach (var skill in DefDatabase<SkillDef>.AllDefs.Where(x => !curRecipe.skillRequirementsString.Any(y => x.defName == y.skill)))
-            {
-                floatList.Add(new FloatMenuOption(skill.skillLabel.CapitalizeFirst(), delegate
-                {
-                    curRecipe.skillRequirementsString.Add(new SkillRequirementString
-                    {
-                        skill = skill.defName,
-                        minLevel = 1
-                    });
-                }));
-            }
-            Find.WindowStack.Add(new FloatMenu(floatList));
-        }
-
-        private void AddResearchRequirementOptions()
-        {
-            var floatList = new List<FloatMenuOption>();
-            foreach (var researchProject in DefDatabase<ResearchProjectDef>.AllDefs.Where(x => !curRecipe.researchPrerequisitesString.Any(y => x.defName == y)))
-            {
-                floatList.Add(new FloatMenuOption(researchProject.LabelCap, delegate
-                {
-                    curRecipe.researchPrerequisitesString.Add(researchProject.defName);
-                }));
-            }
-            Find.WindowStack.Add(new FloatMenu(floatList));
-        }
-
-        private void AddIngredientRequirementOptions()
-        {
-            Find.WindowStack.Add(new Window_SelectItem(Utils.craftableItems, delegate (ThingDef selected)
-            {
-                MakeAnythingCraftableMod.settings.curRecipe.ingredientsString.Add(new ThingDefCountClassString
-                {
-                    defName = selected.defName,
-                    count = 1
-                });
-            }));
-        }
-
         private static Rect DoLabel(ref Vector2 pos, string label)
         {
             var labelRect = new Rect(pos.x, pos.y, 250, 24);
@@ -522,19 +633,6 @@ namespace MakeAnythingCraftable
                 action();
             }
             return buttonRect;
-        }
-
-        private static Rect DoButtonLabeled(ref Vector2 pos, string label, string buttonLabel, Action action)
-        {
-            var labelRect = new Rect(pos.x, pos.y, 120, 24);
-            Widgets.Label(labelRect, label);
-            var buttonRect = new Rect(labelRect.xMax, pos.y, 130, 24);
-            if (Widgets.ButtonText(buttonRect, buttonLabel))
-            {
-                action();
-            }
-            pos.y += 24;
-            return labelRect;
         }
 
         public void ResetRecipe()

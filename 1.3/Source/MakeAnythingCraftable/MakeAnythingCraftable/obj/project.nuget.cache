@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "/rHmVjrfFZW5/RJGgZzkgDRFtcAzf9SzAQDu8azoBdjANe/4h9Jsisuec28ixgr6non35DLzLDIEuRsesoj74g==",
+  "dgSpecHash": "ToU9iQnEQcYuMMjTo3iePfUvk9mjWtdU1rkLsFLS7g6TvuNwWKz9xiGVvog7ZlJIUkRK/DPNTU6bVY1IHCMiRA==",
   "success": true,
   "projectFilePath": "c:\\Program Files (x86)\\Steam\\steamapps\\common\\RimWorld\\Mods\\Make-Anything-Craftable-\\1.3\\Source\\MakeAnythingCraftable\\MakeAnythingCraftable\\MakeAnythingCraftable.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\Vova\\.nuget\\packages\\krafs.publicizer\\1.0.2\\krafs.publicizer.1.0.2.nupkg.sha512",
     "C:\\Users\\Vova\\.nuget\\packages\\krafs.rimworld.ref\\1.3.3326\\krafs.rimworld.ref.1.3.3326.nupkg.sha512",
     "C:\\Users\\Vova\\.nuget\\packages\\lib.harmony\\2.2.1\\lib.harmony.2.2.1.nupkg.sha512"
   ],

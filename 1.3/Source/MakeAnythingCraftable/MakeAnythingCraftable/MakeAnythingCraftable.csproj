@@ -41,21 +41,30 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IngredientCountExposable.cs" />
     <Compile Include="MakeAnythingCraftableMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RecipeDefExposable.cs" />
     <Compile Include="SkillRequirementString.cs" />
-    <Compile Include="ThingDefCountClassString.cs" />
+    <Compile Include="DefCount.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Window_SelectItem.cs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer">
+      <Version>1.0.2</Version>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Krafs.Rimworld.Ref">
       <Version>1.3.3326</Version>
     </PackageReference>
     <PackageReference Include="Lib.Harmony">
       <Version>2.2.1</Version>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Publicize Include="Assembly-CSharp" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
