@@ -13,7 +13,6 @@ namespace MakeAnythingCraftable
         public static List<ThingDef> workbenches = new List<ThingDef>();
         public static List<ThingDef> craftableItems = new List<ThingDef>();
         public static List<ThingDef> unfinishedThings = new List<ThingDef>();
-
         public static HashSet<StatDef> workSpeedStats = new HashSet<StatDef>();
         public static HashSet<StatDef> efficiencyStats = new HashSet<StatDef>();
         public static HashSet<EffecterDef> effecterDefs = new HashSet<EffecterDef>();
@@ -23,6 +22,23 @@ namespace MakeAnythingCraftable
         static Utils()
         {
             new Harmony("MakeAnythingCraftable.Mod").PatchAll();
+            MakeAnythingCraftableMod.settings.ApplySettings();
+        }
+        public static void Reset()
+        {
+            workbenches = new List<ThingDef>();
+            craftableItems = new List<ThingDef>();
+            unfinishedThings = new List<ThingDef>();
+            workSpeedStats = new HashSet<StatDef>();
+            efficiencyStats = new HashSet<StatDef>();
+            effecterDefs = new HashSet<EffecterDef>();
+            soundDefs = new HashSet<SoundDef>();
+            medicalRecipes = new HashSet<RecipeDef>();
+            craftingRecipes = new List<RecipeDef>();            
+        }
+        
+        public static void CreateRecipeLists()
+        {
             foreach (var item in DefDatabase<ThingDef>.AllDefsListForReading)
             {
                 if (typeof(Pawn).IsAssignableFrom(item.thingClass))
@@ -34,9 +50,9 @@ namespace MakeAnythingCraftable
                 }
 
                 if ((DebugThingPlaceHelper.IsDebugSpawnable(item) || item.Minifiable)
-                    && !typeof(Filth).IsAssignableFrom(item.thingClass) 
+                    && !typeof(Filth).IsAssignableFrom(item.thingClass)
                     && !typeof(Mote).IsAssignableFrom(item.thingClass)
-                    && item.category != ThingCategory.Ethereal && item.plant is null 
+                    && item.category != ThingCategory.Ethereal && item.plant is null
                     && (item.building is null || item.Minifiable))
                 {
                     craftableItems.Add(item);
@@ -69,13 +85,53 @@ namespace MakeAnythingCraftable
                 {
                     effecterDefs.Add(recipe.effectWorking);
                 }
-                if (!medicalRecipes.Contains(recipe) && recipe.products != null 
+                if (!medicalRecipes.Contains(recipe) && recipe.products != null
                     && recipe.products.Count == 1)
                 {
                     craftingRecipes.Add(recipe);
                 }
             }
-            MakeAnythingCraftableMod.settings.ApplySettings();
+        }
+
+        public static void ClearRemovedRecipesFromRecipeUsers(this RecipeDef recipeDef)
+        {
+            if (recipeDef.recipeUsers != null)
+            {
+                foreach (var recipeUser in recipeDef.recipeUsers)
+                {
+                    if (recipeUser.allRecipesCached != null)
+                    {
+                        for (int i = recipeUser.allRecipesCached.Count - 1; i >= 0; i--)
+                        {
+                            if (MakeAnythingCraftableMod.settings.removedRecipeDefs?.Any(x => x.defName == recipeUser.allRecipesCached[i].defName) ?? false)
+                            {
+                                recipeUser.allRecipesCached.RemoveAt(i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void AddCreatedRecipesFromRecipeUsers(this RecipeDef recipeDef)
+        {
+            if (recipeDef.recipeUsers != null)
+            {
+                foreach (var recipeUser in recipeDef.recipeUsers)
+                {
+                    if (recipeUser.allRecipesCached != null)
+                    {
+                        foreach (var createdRecipe in MakeAnythingCraftableMod.settings.createdRecipeDefs)
+                        {
+                            if (!recipeUser.allRecipesCached.Contains(createdRecipe))
+                            {
+                                Log.Message("Adding " + createdRecipe.defName + " to " + recipeUser.defName);
+                                recipeUser.allRecipesCached.Add(createdRecipe);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -103,6 +159,15 @@ namespace MakeAnythingCraftable
             StatsReportUtility.quickSearchWidget.Reset();
             PermitsCardUtility.selectedPermit = null;
             PermitsCardUtility.selectedFaction = null;
+        }
+    }
+    
+    [HarmonyPatch(typeof(ThingDef), "AllRecipes", MethodType.Getter)]
+    public static class ThingDef_AllRecipes_Patch
+    {
+        public static void Prefix(ThingDef __instance)
+        {
+            __instance.allRecipesCached = __instance.allRecipesCached?.Distinct()?.ToList();
         }
     }
 }

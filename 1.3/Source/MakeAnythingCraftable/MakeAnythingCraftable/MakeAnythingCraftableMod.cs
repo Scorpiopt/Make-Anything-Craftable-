@@ -46,24 +46,62 @@ namespace MakeAnythingCraftable
     [HotSwappable]
     public class MakeAnythingCraftableSettings : ModSettings
     {
-        public List<RecipeDefExposable> newRecipeDefs = new List<RecipeDefExposable>();
-		public override void ExposeData()
+        public List<RecipeDefExposable> createdRecipeDefs = new List<RecipeDefExposable>();
+        public List<RecipeDefExposable> modifiedRecipeDefs = new List<RecipeDefExposable>();
+        public List<RecipeDefExposable> removedRecipeDefs = new List<RecipeDefExposable>();
+        public override void ExposeData()
         {
             base.ExposeData();
-            Scribe_Collections.Look(ref newRecipeDefs, "newRecipeDefs", LookMode.Deep);
+            Scribe_Collections.Look(ref createdRecipeDefs, "createdRecipeDefs", LookMode.Deep);
+            Scribe_Collections.Look(ref modifiedRecipeDefs, "modifiedRecipeDefs", LookMode.Deep);
+            Scribe_Collections.Look(ref removedRecipeDefs, "removedRecipeDefs", LookMode.Deep);
         }
-
         public void ApplySettings()
         {
-            foreach (var recipe in newRecipeDefs)
+            if (createdRecipeDefs is null)
+            {
+                createdRecipeDefs = new List<RecipeDefExposable>();
+            }
+            foreach (var recipe in createdRecipeDefs)
             {
                 if (DefDatabase<RecipeDef>.GetNamedSilentFail(recipe.defName) is null)
                 {
                     recipe.ResolveReferences();
                     DefDatabase<RecipeDef>.Add(recipe);
                 }
+                recipe.AddCreatedRecipesFromRecipeUsers();
                 recipe.modContentPack = this.Mod.Content;
             }
+            if (modifiedRecipeDefs is null)
+            {
+                modifiedRecipeDefs = new List<RecipeDefExposable>();
+            }
+            foreach (var recipe in modifiedRecipeDefs)
+            {
+                var originalRecipe = DefDatabase<RecipeDef>.GetNamedSilentFail(recipe.defName);
+                if (originalRecipe != null)
+                {
+                    recipe.ResolveReferences();
+                    recipe.ModifyRecipe(originalRecipe);
+                }
+            }
+            
+            if (removedRecipeDefs is null)
+            {
+                removedRecipeDefs = new List<RecipeDefExposable>();
+            }
+            foreach (var recipe in removedRecipeDefs)
+            {
+                var originalRecipe = DefDatabase<RecipeDef>.GetNamedSilentFail(recipe.defName);
+                if (originalRecipe != null)
+                {
+                    DefDatabase<RecipeDef>.Remove(originalRecipe);
+                    originalRecipe.ClearRemovedRecipesFromRecipeUsers();
+                }
+            }
+            
+            Utils.Reset();
+            Utils.CreateRecipeLists();
         }
         public void DoSettingsWindowContents(Rect inRect)
         {
@@ -78,6 +116,7 @@ namespace MakeAnythingCraftable
         private Vector2 firstColumnPos;
         private Vector2 secondColumnPos;
         private Vector2 scrollPosition;
+        private Vector2 scrollPosition2;
         private string recipeLabel;
         string buf1, buf2, buf3, buf4;
         public string GetRecipeLabel()
@@ -91,7 +130,7 @@ namespace MakeAnythingCraftable
 
         private string GetRecipeLabelBase()
         {
-            if (curRecipe.label != null)
+            if (!curRecipe.label.NullOrEmpty())
             {
                 return curRecipe.label;
             }
@@ -123,45 +162,147 @@ namespace MakeAnythingCraftable
 
             DoButton(ref firstColumnPos, "MAC.SelectRecipe".Translate(), delegate
             {
-                Find.WindowStack.Add(new Window_SelectItem<RecipeDef>(Utils.craftingRecipes, delegate (RecipeDef selected)
+                Utils.Reset();
+                Utils.CreateRecipeLists();
+                Find.WindowStack.Add(new Window_SelectItem<RecipeDef>(Utils.craftingRecipes.Concat(removedRecipeDefs).ToList(), delegate (RecipeDef selected)
                 {
-                    curRecipe = new RecipeDefExposable(selected);
+                    ResetRecipe();
+                    if (selected is RecipeDefExposable exposable)
+                    {
+                        curRecipe = exposable;
+                    }
+                    else
+                    {
+                        curRecipe = new RecipeDefExposable(selected);
+                        curRecipe.ResolveReferences();
+                    }
+                }, (RecipeDef x) => 0, delegate(RecipeDef x)
+                {
+                    var postfix = "";
+                    if (removedRecipeDefs.Contains(x))
+                    {
+                        postfix = "MAC.RemovedPostfix".Translate();
+                    }
+                    return x.LabelCap + postfix;
                 }));
             });
 
             firstColumnPos.y += 12;
+            Rect removeRect;
+            Rect buttonRect;
 
             if (curRecipe.productString != null && curRecipe.recipeUsersString.Any() && curRecipe.workAmount > 0)
             {
-                if (Widgets.ButtonText(new Rect(firstColumnPos.x, firstColumnPos.y, 250, 32), "MAC.SaveRecipe".Translate()))
+                var buttonWidth = 120;
+                buttonRect = new Rect(firstColumnPos.x, firstColumnPos.y, buttonWidth, 32);
+                if (Widgets.ButtonText(buttonRect, "MAC.SaveRecipe".Translate()))
                 {
-                    curRecipe.defName = "MAC_Custom_Make_" + curRecipe.productString.Def.defName;
-                    if (curRecipe.label.NullOrEmpty())
+                    curRecipe.label = GetRecipeLabel();
+                    if (!curRecipe.copied)
                     {
-                        curRecipe.label = GetRecipeLabel();
+                        var name = "MAC_Custom_Make_" + curRecipe.productString.Def.defName;
+                        name += createdRecipeDefs.Count(x => x.defName.Contains(name)) + 1;
+                        curRecipe.defName = name;
+                        if (curRecipe.description.NullOrEmpty())
+                        {
+                            curRecipe.description = curRecipe.label;
+                        }
+                        if (curRecipe.jobString.NullOrEmpty())
+                        {
+                            var text = curRecipe.productString.Def.label;
+                            if (curRecipe.productString.count != 1)
+                            {
+                                text = text + " x" + curRecipe.productString.count;
+                            }
+                            curRecipe.jobString = "RecipeMakeJobString".Translate(text);
+                        }
+                        curRecipe.modContentPack = this.Mod.Content;
+                        createdRecipeDefs.Add(curRecipe);
                     }
-                    curRecipe.description = curRecipe.label;
-                    string text = curRecipe.productString.Def.label;
-                    if (curRecipe.productString.count != 1)
+                    else
                     {
-                        text = text + " x" + curRecipe.productString.count;
+                        var existingRecipe = modifiedRecipeDefs.Find(x => x.defName == curRecipe.defName);
+                        if (existingRecipe != null)
+                        {
+                            modifiedRecipeDefs.Remove(existingRecipe);
+                        }
+                        modifiedRecipeDefs.Add(curRecipe);
                     }
-                    curRecipe.jobString = "RecipeMakeJobString".Translate(text);
-                    curRecipe.modContentPack = this.Mod.Content;
-                    newRecipeDefs.Add(curRecipe);
+                    curRecipe.ResolveReferences();
                     ResetPositions();
                     ResetRecipe();
                     ApplySettings();
                     Widgets.EndScrollView();
                     return;
                 }
+
+                buttonRect = new Rect(buttonRect.xMax + 15, firstColumnPos.y, buttonWidth, 32);
+                if (Widgets.ButtonText(buttonRect, "MAC.CloneRecipe".Translate()))
+                {
+                    if (curRecipe.copied)
+                    {
+                        curRecipe = new RecipeDefExposable(curRecipe);
+                    }
+                    curRecipe.ResolveReferences();
+                    curRecipe.copied = false;
+                    var name = "MAC_Custom_Make_" + curRecipe.productString.Def.defName;
+                    name += createdRecipeDefs.Count(x => x.defName.Contains(name)) + 1;
+                    curRecipe.defName = name;
+                    curRecipe.label = GetRecipeLabel();
+                    curRecipe.modContentPack = this.Mod.Content;
+                    createdRecipeDefs.Add(curRecipe);
+                    ResetPositions();
+                    ResetRecipe();
+                    ApplySettings();
+                    Widgets.EndScrollView();
+                    return;
+                }
+                buttonRect = new Rect(buttonRect.xMax + 15, firstColumnPos.y, buttonWidth, 32);
+                if (removedRecipeDefs.Contains(curRecipe))
+                {
+                    if (Widgets.ButtonText(buttonRect, "MAC.RestoreRecipe".Translate()))
+                    {
+                        removedRecipeDefs.Remove(curRecipe);
+                        curRecipe.ResolveReferences();
+                        curRecipe.copied = false;
+                        DefDatabase<RecipeDef>.Add(curRecipe);
+                        ResetPositions();
+                        ResetRecipe();
+                        ApplySettings();
+                        Widgets.EndScrollView();
+                        return;
+                    }
+                }
+                else if (Widgets.ButtonText(buttonRect, "MAC.RemoveRecipe".Translate()))
+                {
+                    var existingRecipe = modifiedRecipeDefs.Find(x => x.defName == curRecipe.defName);
+                    if (existingRecipe != null)
+                    {
+                        modifiedRecipeDefs.Remove(existingRecipe);
+                    }
+                    existingRecipe = createdRecipeDefs.Find(x => x.defName == curRecipe.defName);
+                    if (existingRecipe != null)
+                    {
+                        createdRecipeDefs.Remove(existingRecipe);
+                    }
+                    else
+                    {
+                        removedRecipeDefs.Add(curRecipe);
+                    }
+
+                    ResetPositions();
+                    ResetRecipe();
+                    ApplySettings();
+                    Widgets.EndScrollView();
+                    return;
+                }
+           
                 firstColumnPos.y += 32;
                 firstColumnPos.y += 12;
             }
             var labelRect = new Rect(firstColumnPos.x, firstColumnPos.y, 100, 24);
             Widgets.Label(labelRect, "MAC.RecipeLabel".Translate());
             var inputRect = new Rect(labelRect.xMax, firstColumnPos.y, 250, 24);
-            Rect removeRect;
             recipeLabel = Widgets.TextField(inputRect, GetRecipeLabel());
             if (recipeLabel == GetRecipeLabelBase())
             {
@@ -170,8 +311,22 @@ namespace MakeAnythingCraftable
             firstColumnPos.y += 24;
             firstColumnPos.y += 12;
 
+            labelRect = new Rect(firstColumnPos.x, firstColumnPos.y, 100, 24);
+            Widgets.Label(labelRect, "MAC.RecipeDescription".Translate());
+            inputRect = new Rect(labelRect.xMax, firstColumnPos.y, 250, 50);
+            curRecipe.description = Widgets.TextAreaScrollable(inputRect, curRecipe.description, ref scrollPosition2);
+            firstColumnPos.y += 50;
+            firstColumnPos.y += 12;
+
+            labelRect = new Rect(firstColumnPos.x, firstColumnPos.y, 100, 24);
+            Widgets.Label(labelRect, "MAC.JobString".Translate());
+            inputRect = new Rect(labelRect.xMax, firstColumnPos.y, 250, 24);
+            curRecipe.jobString = Widgets.TextField(inputRect, curRecipe.jobString);
+            firstColumnPos.y += 24;
+            firstColumnPos.y += 12;
+
             labelRect = DoLabel(ref firstColumnPos, "MAC.SelectProduct".Translate());
-            Rect buttonRect = DoButton(ref firstColumnPos, curRecipe.productString != null ? curRecipe.productString.Def.LabelCap.ToString() : "-", delegate
+            buttonRect = DoButton(ref firstColumnPos, curRecipe.productString != null ? curRecipe.productString.Def.LabelCap.ToString() : "-", delegate
             {
                 Find.WindowStack.Add(new Window_SelectItem<ThingDef>(Utils.craftableItems, delegate (ThingDef selected)
                 {
@@ -247,9 +402,9 @@ namespace MakeAnythingCraftable
             });
 
             firstColumnPos.y += 12;
-            var value = (int)(curRecipe.workAmount / 60);
+            var value = curRecipe.workAmount > 0 ? curRecipe.workAmount / 60f : 0;
             DoInput(firstColumnPos.x, firstColumnPos.y, "MAC.SetWorkAmount".Translate(), ref value, ref buf2, 170);
-            curRecipe.workAmount = value * 60;
+            curRecipe.workAmount = value > 0 ? value * 60f : 0;
             firstColumnPos.y += 24 + 12;
 
             DoLabel(ref firstColumnPos, "MAC.SetWorkSpeedStat".Translate());
@@ -600,7 +755,6 @@ namespace MakeAnythingCraftable
             scrollHeightCount = (int)Mathf.Max(rect.height, Mathf.Max(firstColumnPos.y, secondColumnPos.y));
             ResetPositions();
         }
-
         private void DoInput(float x, float y, string label, ref int count, ref string buffer, float width = 50)
         {
             Rect labelRect = new Rect(x, y, width, 24);
@@ -609,7 +763,14 @@ namespace MakeAnythingCraftable
             buffer = count.ToString();
             Widgets.TextFieldNumeric<int>(inputRect, ref count, ref buffer);
         }
-
+        private void DoInput(float x, float y, string label, ref float count, ref string buffer, float width = 50)
+        {
+            Rect labelRect = new Rect(x, y, width, 24);
+            Widgets.Label(labelRect, label);
+            Rect inputRect = new Rect(labelRect.xMax, labelRect.y, 75, 24);
+            buffer = count.ToString();
+            Widgets.TextFieldNumeric<float>(inputRect, ref count, ref buffer);
+        }
         private void ResetPositions()
         {
             firstColumnPos = new Vector2(0, 0);
@@ -639,6 +800,7 @@ namespace MakeAnythingCraftable
         {
             curRecipe = new RecipeDefExposable();
             recipeLabel = "";
+            buf1 = buf2 = buf3 = buf4 = "";
         }
     }
 }

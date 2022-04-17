@@ -27,5 +27,11 @@
 	<MAC.RemoveIngredient>Remove ingredient</MAC.RemoveIngredient>
 	<MAC.ThingDefMark>[T] </MAC.ThingDefMark>
 	<MAC.CategoryMark>[C] </MAC.CategoryMark>
+	<MAC.CloneRecipe>Clone recipe</MAC.CloneRecipe>
+	<MAC.RemoveRecipe>Remove recipe</MAC.RemoveRecipe>
+	<MAC.RestoreRecipe>Restore recipe</MAC.RestoreRecipe>
+	<MAC.RemovedPostfix> (removed)</MAC.RemovedPostfix>
+	<MAC.RecipeDescription>Description: </MAC.RecipeDescription>
+	<MAC.JobString>Job string: </MAC.JobString>
 	
 </LanguageData>

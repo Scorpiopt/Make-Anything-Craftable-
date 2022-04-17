@@ -5,7 +5,7 @@ namespace MakeAnythingCraftable
 {
     public class IngredientCountExposable : IExposable
     {
-        public int count;
+        public float count;
         public List<string> thingDefs = new List<string>();
         public List<string> categories = new List<string>();
         public void ExposeData()

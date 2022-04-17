@@ -5,6 +5,7 @@ using Verse.Sound;
 using System.Linq;
 using RimWorld;
 using System;
+using System.Security.Cryptography;
 
 namespace MakeAnythingCraftable
 {
@@ -18,7 +19,8 @@ namespace MakeAnythingCraftable
         public Action<T> actionOnSelect;
 
         public Func<T, int> ordering;
-        public Window_SelectItem(List<T> items, Action<T> actionOnSelect, Func<T, int> ordering = null)
+        public Func<T, string> labelGetter;
+        public Window_SelectItem(List<T> items, Action<T> actionOnSelect, Func<T, int> ordering = null, Func<T, string> labelGetter = null)
         {
             doCloseButton = true;
             doCloseX = true;
@@ -27,9 +29,10 @@ namespace MakeAnythingCraftable
             this.allItems = items;
             this.actionOnSelect = actionOnSelect;
             this.ordering = ordering;
+            this.labelGetter = labelGetter;
         }
-
         string searchKey;
+        public string GetLabel(T def) => labelGetter != null ? labelGetter(def) : def.label;
         public override void DoWindowContents(Rect inRect)
         {
             Text.Font = GameFont.Small;
@@ -46,7 +49,7 @@ namespace MakeAnythingCraftable
             outRect.yMax -= 70f;
             outRect.width -= 16f;
 
-            var defs = searchKey.NullOrEmpty() ? allItems : allItems.Where(x => x.label.ToLower().Contains(searchKey.ToLower())).ToList();
+            var defs = searchKey.NullOrEmpty() ? allItems : allItems.Where(x => GetLabel(x).ToLower().Contains(searchKey.ToLower())).ToList();
 
             Rect viewRect = new Rect(0f, 0f, outRect.width - 16f, (float)defs.Count() * 35f);
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
@@ -68,7 +71,7 @@ namespace MakeAnythingCraftable
                     }
                     Rect rect = new Rect(iconRect.xMax + 5, num, viewRect.width * 0.7f, 32f);
                     Text.Anchor = TextAnchor.MiddleLeft;
-                    Widgets.Label(rect, def.LabelCap);
+                    Widgets.Label(rect, GetLabel(def));
                     Text.Anchor = TextAnchor.UpperLeft;
                     rect.x = rect.xMax + 10;
                     rect.width = 100;
