@@ -175,6 +175,7 @@ namespace MakeAnythingCraftable
         {
             foreach (var def in DefDatabase<ThingDef>.AllDefs)
             {
+                _ = def.AllRecipes;
                 def.allRecipesCached = def.allRecipesCached?.Distinct()?.ToList();
             }
         }
