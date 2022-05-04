@@ -378,7 +378,7 @@ namespace MakeAnythingCraftable
                         var index = curRecipe.recipeUsersString.IndexOf(recipeUser);
                         curRecipe.recipeUsersString.RemoveAt(index);
                         curRecipe.recipeUsersString.Insert(index, selected.defName);
-                    }, x => x.FirstThingCategory?.index ?? 0));
+                    }, x => x.FirstThingCategory?.index ?? 0, (ThingDef x) => x.LabelCap));
                 }
 
                 removeRect = new Rect(recipeUserRect.xMax + 5, firstColumnPos.y, 20, 21f);
@@ -398,7 +398,7 @@ namespace MakeAnythingCraftable
                 delegate (ThingDef selected)
                 {
                     curRecipe.recipeUsersString.Add(selected.defName);
-                }, x => x.FirstThingCategory?.index ?? 0));
+                }, x => x.FirstThingCategory?.index ?? 0, (ThingDef x) => x.LabelCap));
             });
 
             firstColumnPos.y += 12;

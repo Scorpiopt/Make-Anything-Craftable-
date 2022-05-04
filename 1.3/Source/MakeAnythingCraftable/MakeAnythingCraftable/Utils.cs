@@ -4,6 +4,7 @@ using RimWorld;
 using System.Linq;
 using HarmonyLib;
 using UnityEngine;
+using System.Diagnostics;
 
 namespace MakeAnythingCraftable
 {
@@ -49,11 +50,7 @@ namespace MakeAnythingCraftable
                     }
                 }
 
-                if ((DebugThingPlaceHelper.IsDebugSpawnable(item) || item.Minifiable)
-                    && !typeof(Filth).IsAssignableFrom(item.thingClass)
-                    && !typeof(Mote).IsAssignableFrom(item.thingClass)
-                    && item.category != ThingCategory.Ethereal && item.plant is null
-                    && (item.building is null || item.Minifiable))
+                if (Spawnable(item))
                 {
                     craftableItems.Add(item);
                 }
@@ -91,6 +88,15 @@ namespace MakeAnythingCraftable
                     craftingRecipes.Add(recipe);
                 }
             }
+        }
+
+        public static bool Spawnable(this ThingDef item)
+        {
+            return (DebugThingPlaceHelper.IsDebugSpawnable(item) || item.Minifiable)
+                                && !typeof(Filth).IsAssignableFrom(item.thingClass)
+                                && !typeof(Mote).IsAssignableFrom(item.thingClass)
+                                && item.category != ThingCategory.Ethereal && item.plant is null
+                                && (item.building is null || item.Minifiable);
         }
 
         public static void ClearRemovedRecipesFromRecipeUsers(this RecipeDef recipeDef)
@@ -162,12 +168,15 @@ namespace MakeAnythingCraftable
         }
     }
     
-    [HarmonyPatch(typeof(ThingDef), "AllRecipes", MethodType.Getter)]
+    [HarmonyPatch(typeof(Game), "FinalizeInit")]
     public static class ThingDef_AllRecipes_Patch
     {
-        public static void Prefix(ThingDef __instance)
+        public static void Prefix()
         {
-            __instance.allRecipesCached = __instance.allRecipesCached?.Distinct()?.ToList();
+            foreach (var def in DefDatabase<ThingDef>.AllDefs)
+            {
+                def.allRecipesCached = def.allRecipesCached?.Distinct()?.ToList();
+            }
         }
     }
 }
