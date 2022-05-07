@@ -131,40 +131,12 @@ namespace MakeAnythingCraftable
                         {
                             if (!recipeUser.allRecipesCached.Contains(createdRecipe))
                             {
-                                Log.Message("Adding " + createdRecipe.defName + " to " + recipeUser.defName);
                                 recipeUser.allRecipesCached.Add(createdRecipe);
                             }
                         }
                     }
                 }
             }
-        }
-    }
-
-    [HarmonyPatch(typeof(StatsReportUtility), "Reset")]
-    public static class StatsReportUtility_Reset_Patch
-    {
-        public static bool Prefix()
-        {
-            if (Current.Game?.World?.factionManager is null)
-            {
-                Reset();
-                return false;
-            }
-            return true;
-        }
-
-        public static void Reset()
-        {
-            StatsReportUtility.scrollPosition = default(Vector2);
-            StatsReportUtility.scrollPositionRightPanel = default(Vector2);
-            StatsReportUtility.selectedEntry = null;
-            StatsReportUtility.scrollPositioner.Arm(armed: false);
-            StatsReportUtility.mousedOverEntry = null;
-            StatsReportUtility.cachedDrawEntries.Clear();
-            StatsReportUtility.quickSearchWidget.Reset();
-            PermitsCardUtility.selectedPermit = null;
-            PermitsCardUtility.selectedFaction = null;
         }
     }
     
