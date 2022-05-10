@@ -5,6 +5,7 @@ using System.Linq;
 using HarmonyLib;
 using UnityEngine;
 using System.Diagnostics;
+using System;
 
 namespace MakeAnythingCraftable
 {
@@ -92,11 +93,19 @@ namespace MakeAnythingCraftable
 
         public static bool Spawnable(this ThingDef item)
         {
-            return (DebugThingPlaceHelper.IsDebugSpawnable(item) || item.Minifiable)
+            try
+            {
+                return (DebugThingPlaceHelper.IsDebugSpawnable(item) || item.Minifiable)
                                 && !typeof(Filth).IsAssignableFrom(item.thingClass)
                                 && !typeof(Mote).IsAssignableFrom(item.thingClass)
                                 && item.category != ThingCategory.Ethereal && item.plant is null
                                 && (item.building is null || item.Minifiable);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Caught error processing " + item + ": " + ex.ToString());
+                return false;
+            }
         }
 
         public static void ClearRemovedRecipesFromRecipeUsers(this RecipeDef recipeDef)
