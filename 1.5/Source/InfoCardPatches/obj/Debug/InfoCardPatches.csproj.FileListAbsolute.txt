@@ -1,0 +1,4 @@
+C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Make-Anything-Craftable-\1.5\Assemblies\InfoCardPatches.dll
+C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Make-Anything-Craftable-\1.5\Source\InfoCardPatches\obj\Debug\InfoCardPatches.csproj.AssemblyReference.cache
+C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Make-Anything-Craftable-\1.5\Source\InfoCardPatches\obj\Debug\InfoCardPatches.csproj.CoreCompileInputs.cache
+C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Make-Anything-Craftable-\1.5\Source\InfoCardPatches\obj\Debug\InfoCardPatches.dll
