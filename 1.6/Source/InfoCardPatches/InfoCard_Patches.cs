@@ -29,44 +29,54 @@ namespace InfoCardPatches
             }
             return true;
         }
-
         public static bool ShouldShowFor(StatWorker __instance, StatRequest req)
         {
-            if (__instance.stat.alwaysHide)
+            var stat = __instance.stat;
+            if (stat.alwaysHide)
             {
                 return false;
             }
             var def = req.Def;
-            if (!__instance.stat.showIfUndefined && !req.StatBases.StatListContains(__instance.stat))
+            if (!stat.showIfUndefined && !req.StatBases.StatListContains(stat))
             {
                 return false;
             }
-            if (!__instance.stat.CanShowWithLoadedMods())
+            if (!stat.CanShowWithLoadedMods())
             {
                 return false;
+            }
+            if (stat.parts != null)
+            {
+                foreach (var part in stat.parts)
+                {
+                    if (part.ForceShow(req))
+                    {
+                        return true;
+                    }
+                }
             }
             if (req.Thing is Pawn pawn)
             {
-                if (pawn.health != null && !__instance.stat.showIfHediffsPresent.NullOrEmpty())
+                if (pawn.health != null && !stat.showIfHediffsPresent.NullOrEmpty())
                 {
-                    for (int i = 0; i < __instance.stat.showIfHediffsPresent.Count; i++)
+                    for (int i = 0; i < stat.showIfHediffsPresent.Count; i++)
                     {
-                        if (!pawn.health.hediffSet.HasHediff(__instance.stat.showIfHediffsPresent[i]))
+                        if (!pawn.health.hediffSet.HasHediff(stat.showIfHediffsPresent[i]))
                         {
                             return false;
                         }
                     }
                 }
-                if (__instance.stat.showOnSlavesOnly && !pawn.IsSlave)
+                if (stat.showOnSlavesOnly && !pawn.IsSlave)
                 {
                     return false;
                 }
             }
-            if (__instance.stat == StatDefOf.MaxHitPoints && req.HasThing)
+            if (stat == StatDefOf.MaxHitPoints && req.HasThing)
             {
                 return false;
             }
-            if (!__instance.stat.showOnUntradeables && !StatWorker.DisplayTradeStats(req))
+            if (!stat.showOnUntradeables && !StatWorker.DisplayTradeStats(req))
             {
                 return false;
             }
@@ -75,38 +85,48 @@ namespace InfoCardPatches
             {
                 if (thingDef.category == ThingCategory.Pawn)
                 {
-                    if (!__instance.stat.showOnPawns)
+                    if (!stat.showOnPawns)
                     {
                         return false;
                     }
-                    if (!__instance.stat.showOnHumanlikes && thingDef.race.Humanlike)
+                    if (!stat.showOnHumanlikes && thingDef.race.Humanlike)
                     {
                         return false;
                     }
-                    if (!__instance.stat.showOnNonWildManHumanlikes && thingDef.race.Humanlike && !((req.Thing as Pawn)?.IsWildMan() ?? false))
+                    if (!stat.showOnNonWildManHumanlikes && thingDef.race.Humanlike && (!(req.Thing is Pawn p) || !p.IsWildMan()))
                     {
                         return false;
                     }
-                    if (!__instance.stat.showOnAnimals && thingDef.race.Animal)
+                    if (!stat.showOnAnimals && thingDef.race.Animal)
                     {
                         return false;
                     }
-                    if (!__instance.stat.showOnMechanoids && thingDef.race.IsMechanoid)
+                    if (!stat.showOnEntities && thingDef.race.IsAnomalyEntity)
                     {
                         return false;
                     }
-                    if (req.Thing is Pawn pawn2 && !__instance.stat.showDevelopmentalStageFilter.Has(pawn2.DevelopmentalStage))
+                    if (!stat.showOnMechanoids && thingDef.race.IsMechanoid)
+                    {
+                        return false;
+                    }
+                    if (!stat.showOnDrones && thingDef.race.IsDrone)
+                    {
+                        return false;
+                    }
+                    if (req.Thing is Pawn pawn2 && !stat.showDevelopmentalStageFilter.Has(pawn2.DevelopmentalStage))
                     {
                         return false;
                     }
                 }
-                if (!__instance.stat.showOnUnhaulables && !thingDef.EverHaulable && !thingDef.Minifiable)
+                if (!stat.showOnUnhaulables && !thingDef.EverHaulable && !thingDef.Minifiable)
                 {
                     return false;
                 }
             }
-            if (__instance.stat.category == StatCategoryDefOf.BasicsPawn || __instance.stat.category == StatCategoryDefOf.BasicsPawnImportant
-                || __instance.stat.category == StatCategoryDefOf.PawnCombat)
+            if (stat.category == StatCategoryDefOf.BasicsPawn || stat.category == StatCategoryDefOf.BasicsPawnImportant
+                || stat.category == StatCategoryDefOf.PawnCombat || stat.category == StatCategoryDefOf.Animals
+                || stat.category == StatCategoryDefOf.PawnResistances || stat.category == StatCategoryDefOf.PawnHealth
+                || stat.category == StatCategoryDefOf.PawnFood || stat.category == StatCategoryDefOf.PawnPsyfocus)
             {
                 if (thingDef != null)
                 {
@@ -114,7 +134,7 @@ namespace InfoCardPatches
                 }
                 return false;
             }
-            if (__instance.stat.category == StatCategoryDefOf.PawnMisc || __instance.stat.category == StatCategoryDefOf.PawnSocial || __instance.stat.category == StatCategoryDefOf.PawnWork)
+            if (stat.category == StatCategoryDefOf.PawnMisc || stat.category == StatCategoryDefOf.PawnSocial || stat.category == StatCategoryDefOf.PawnWork)
             {
                 if (thingDef == null || thingDef.category != ThingCategory.Pawn)
                 {
@@ -122,66 +142,62 @@ namespace InfoCardPatches
                 }
                 if (req.Thing is Pawn pawn3)
                 {
-                    if (pawn3.IsColonyMech && __instance.stat.showOnPlayerMechanoids)
+                    if (pawn3.IsColonyMech && stat.showOnPlayerMechanoids)
                     {
                         return true;
                     }
-                    if (__instance.stat.showOnPawnKind.NotNullAndContains(pawn3.kindDef))
+                    if (stat.showOnPawnKind.NotNullAndContains(pawn3.kindDef))
                     {
                         return true;
                     }
                 }
                 return thingDef.race.Humanlike;
             }
-            if (__instance.stat.category == StatCategoryDefOf.Building)
+            if (stat.category == StatCategoryDefOf.Building)
             {
                 if (thingDef == null)
                 {
                     return false;
                 }
-                if (__instance.stat == StatDefOf.DoorOpenSpeed)
+                if (stat == StatDefOf.DoorOpenSpeed)
                 {
                     return thingDef.IsDoor;
                 }
-                if (!__instance.stat.showOnNonWorkTables && !thingDef.IsWorkTable)
+                if (!stat.showOnNonWorkTables && !thingDef.IsWorkTable)
+                {
+                    return false;
+                }
+                if (!stat.showOnNonPowerPlants && !thingDef.HasAssignableCompFrom(typeof(CompPowerPlant)))
                 {
                     return false;
                 }
                 return thingDef.category == ThingCategory.Building;
             }
-            if (__instance.stat.category == StatCategoryDefOf.Apparel)
+            if (stat.category == StatCategoryDefOf.Apparel)
             {
                 if (thingDef != null)
                 {
-                    if (!thingDef.IsApparel)
-                    {
-                        return thingDef.category == ThingCategory.Pawn;
-                    }
-                    return true;
+                    return thingDef.IsApparel || thingDef.category == ThingCategory.Pawn;
                 }
                 return false;
             }
-            if (__instance.stat.category == StatCategoryDefOf.Weapon)
+            if (stat.category == StatCategoryDefOf.Weapon)
             {
                 if (thingDef != null)
                 {
-                    if (!thingDef.IsMeleeWeapon)
-                    {
-                        return thingDef.IsRangedWeapon;
-                    }
-                    return true;
+                    return thingDef.IsMeleeWeapon || thingDef.IsRangedWeapon;
                 }
                 return false;
             }
-            if (__instance.stat.category == StatCategoryDefOf.Weapon_Ranged)
+            if (stat.category == StatCategoryDefOf.Weapon_Ranged)
             {
                 return thingDef?.IsRangedWeapon ?? false;
             }
-            if (__instance.stat.category == StatCategoryDefOf.Weapon_Melee)
+            if (stat.category == StatCategoryDefOf.Weapon_Melee)
             {
                 return thingDef?.IsMeleeWeapon ?? false;
             }
-            if (__instance.stat.category == StatCategoryDefOf.BasicsNonPawn || __instance.stat.category == StatCategoryDefOf.BasicsNonPawnImportant)
+            if (stat.category == StatCategoryDefOf.BasicsNonPawn || stat.category == StatCategoryDefOf.BasicsNonPawnImportant)
             {
                 if (thingDef == null || thingDef.category != ThingCategory.Pawn)
                 {
@@ -189,19 +205,23 @@ namespace InfoCardPatches
                 }
                 return false;
             }
-            if (__instance.stat.category == StatCategoryDefOf.Terrain)
+            if (stat.category == StatCategoryDefOf.Terrain)
             {
                 return def is TerrainDef;
             }
+            if (ModsConfig.AnomalyActive && stat.category == StatCategoryDefOf.PsychicRituals)
+            {
+                return false;
+            }
             if (req.ForAbility)
             {
-                return __instance.stat.category == StatCategoryDefOf.Ability;
+                return stat.category == StatCategoryDefOf.Ability;
             }
-            if (__instance.stat.category.displayAllByDefault)
+            if (stat.category.displayAllByDefault)
             {
                 return true;
             }
-            Log.Error(string.Concat("Unhandled case: ", __instance.stat, ", ", def));
+            Log.Error($"Unhandled case: {stat?.ToString()}, {def}");
             return false;
         }
     }
@@ -209,75 +229,54 @@ namespace InfoCardPatches
     [HarmonyPatch(typeof(PlantProperties), "SpecialDisplayStats")]
     public static class PlantProperties_SpecialDisplayStats_Patch
     {
-        public static bool Prefix(ref IEnumerable<StatDrawEntry> __result, PlantProperties __instance)
+        public static void Postfix(ref IEnumerable<StatDrawEntry> __result)
         {
-            if (Current.Game?.World?.factionManager is null)
+            if (Current.Game?.World?.factionManager != null)
             {
-                __result = SpecialDisplayStats(__instance).ToList();
-                return false;
+                return;
             }
-            return true;
+
+            __result = __result.SafelyEnumerateStats();
         }
 
-        private static IEnumerable<StatDrawEntry> SpecialDisplayStats(PlantProperties __instance)
+        public static IEnumerable<StatDrawEntry> SafelyEnumerateStats(this IEnumerable<StatDrawEntry> originalStats)
         {
-            if (__instance.sowMinSkill > 0)
+            using (var enumerator = originalStats.GetEnumerator())
             {
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "MinGrowingSkillToSow".Translate(), __instance.sowMinSkill.ToString(),
-                    "Stat_Thing_Plant_MinGrowingSkillToSow_Desc".Translate(), 4151);
-            }
-            string attributes = "";
-            if (__instance.Harvestable)
-            {
-                string text = "Harvestable".Translate();
-                if (!attributes.NullOrEmpty())
+                while (true)
                 {
-                    attributes += ", ";
-                    text = text.UncapitalizeFirst();
+                    try
+                    {
+                        if (!enumerator.MoveNext())
+                        {
+                            break;
+                        }
+                    }
+                    catch (System.NullReferenceException e)
+                    {
+                        Log.Warning($"[YourModName] Safely skipped a stat entry that threw an NRE: {e.Message}");
+                        continue;
+                    }
+
+                    yield return enumerator.Current;
                 }
-                attributes += text;
-            }
-            if (__instance.LimitedLifespan)
-            {
-                string text2 = "LimitedLifespan".Translate();
-                if (!attributes.NullOrEmpty())
-                {
-                    attributes += ", ";
-                    text2 = text2.UncapitalizeFirst();
-                }
-                attributes += text2;
-            }
-            if (!__instance.isStump)
-            {
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "GrowingTime".Translate(), __instance.growDays.ToString("0.##") + " " + "Days".Translate(), "GrowingTimeDesc".Translate(), 4158);
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "FertilityRequirement".Translate(), __instance.fertilityMin.ToStringPercent(), "Stat_Thing_Plant_FertilityRequirement_Desc".Translate(), 4156);
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "FertilitySensitivity".Translate(), __instance.fertilitySensitivity.ToStringPercent(), "Stat_Thing_Plant_FertilitySensitivity_Desc".Translate(), 4155);
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "LightRequirement".Translate(), __instance.growMinGlow.ToStringPercent(), "Stat_Thing_Plant_LightRequirement_Desc".Translate(), 4154);
-            }
-            if (!attributes.NullOrEmpty())
-            {
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "Attributes".Translate(), attributes, "Stat_Thing_Plant_Attributes_Desc".Translate(), 4157);
-            }
-            if (__instance.LimitedLifespan)
-            {
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "LifeSpan".Translate(), __instance.LifespanDays.ToString("0.##") + " " + "Days".Translate(), "Stat_Thing_Plant_LifeSpan_Desc".Translate(), 4150);
-            }
-            if (__instance.harvestYield > 0f)
-            {
-                var stringBuilder = new StringBuilder();
-                stringBuilder.AppendLine("Stat_Thing_Plant_HarvestYield_Desc".Translate());
-                stringBuilder.AppendLine();
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "HarvestYield".Translate(), Mathf.CeilToInt(__instance.harvestYield).ToString("F0"), stringBuilder.ToString(), 4150, null, __instance.GetHarvestYieldHyperlinks());
-            }
-            if (!__instance.isStump)
-            {
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "MinGrowthTemperature".Translate(), 0f.ToStringTemperature(), "Stat_Thing_Plant_MinGrowthTemperature_Desc".Translate(), 4152);
-                yield return new StatDrawEntry(StatCategoryDefOf.Basics, "MaxGrowthTemperature".Translate(), 58f.ToStringTemperature(), "Stat_Thing_Plant_MaxGrowthTemperature_Desc".Translate(), 4153);
             }
         }
     }
+    [HarmonyPatch(typeof(RaceProperties), nameof(RaceProperties.SpecialDisplayStats))]
+    public static class RaceProperties_SpecialDisplayStats_Patch
+    {
+        public static void Postfix(ref IEnumerable<StatDrawEntry> __result)
+        {
+            if (Current.Game?.World?.factionManager != null)
+            {
+                return;
+            }
+            __result = __result.SafelyEnumerateStats();
+        }
+    }
 
-    [HarmonyPatch(typeof(StatWorker), nameof(StatWorker.GetExplanationFinalizePart))]
+        [HarmonyPatch(typeof(StatWorker), nameof(StatWorker.GetExplanationFinalizePart))]
     public static class StatWorker_GetExplanationFinalizePart_Patch
     {
         public static bool Prefix(ref string __result, StatWorker __instance, StatRequest req, ToStringNumberSense numberSense, float finalVal)
@@ -332,60 +331,13 @@ namespace InfoCardPatches
     [HarmonyPatch(typeof(BuildingProperties), nameof(BuildingProperties.SpecialDisplayStats))]
     public static class BuildingProperties_SpecialDisplayStats_Patch
     {
-        private static List<string> tmpFenceBlockedAnimals = new List<string>();
-        public static bool Prefix(ref IEnumerable<StatDrawEntry> __result, BuildingProperties __instance, ThingDef parentDef, StatRequest req)
+        public static void Postfix(ref IEnumerable<StatDrawEntry> __result)
         {
-            if (Current.Game?.World?.factionManager is null)
+            if (Current.Game?.World?.factionManager != null)
             {
-                __result = SpecialDisplayStats(__instance, parentDef, req).ToList();
-                return false;
+                return;
             }
-            return true;
-        }
-
-        public static IEnumerable<StatDrawEntry> SpecialDisplayStats(BuildingProperties __instance, ThingDef parentDef, StatRequest req)
-        {
-            if (__instance.joyKind != null)
-            {
-                var stringBuilder = new StringBuilder();
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine("Stat_RecreationType_Desc".Translate());
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine("Stat_JoyKind_AllTypes".Translate() + ":");
-                foreach (var allDef in DefDatabase<JoyKindDef>.AllDefs)
-                {
-                    stringBuilder.AppendLine("  - " + allDef.LabelCap);
-                }
-                yield return new StatDrawEntry(StatCategoryDefOf.Building, "StatsReport_JoyKind".Translate(), __instance.joyKind.LabelCap, stringBuilder.ToString(), 4750, __instance.joyKind.LabelCap);
-            }
-            if (parentDef.Minifiable)
-            {
-                yield return new StatDrawEntry(StatCategoryDefOf.Building, "StatsReport_WorkToUninstall".Translate(), __instance.uninstallWork.ToStringWorkAmount(), "Stat_Thing_WorkToUninstall_Desc".Translate(), 1102);
-            }
-            if (typeof(Building_TrapDamager).IsAssignableFrom(parentDef.thingClass))
-            {
-                float f = StatDefOf.TrapMeleeDamage.Worker.GetValue(req) * 0.015f;
-                yield return new StatDrawEntry(StatCategoryDefOf.Building, "TrapArmorPenetration".Translate(), f.ToStringPercent(), "ArmorPenetrationExplanation".Translate(), 3000);
-            }
-            if (__instance.isFence)
-            {
-                var taggedString = "Stat_Thing_Fence_Desc".Translate();
-                tmpFenceBlockedAnimals.Clear();
-                tmpFenceBlockedAnimals.AddRange(from k in DefDatabase<PawnKindDef>.AllDefs
-                                                where k.RaceProps.Animal && k.RaceProps.FenceBlocked
-                                                select k into g
-                                                select g.LabelCap.Resolve() into s
-                                                orderby s
-                                                select s);
-                taggedString += ":\n\n";
-                taggedString += tmpFenceBlockedAnimals.ToLineList("- ");
-                yield return new StatDrawEntry(StatCategoryDefOf.Building, "StatsReport_Fence".Translate(), "Yes".Translate(), taggedString, 4800);
-                tmpFenceBlockedAnimals.Clear();
-            }
-            if (!ModsConfig.IdeologyActive)
-            {
-                yield break;
-            }
+            __result = __result.SafelyEnumerateStats();
         }
     }
 
